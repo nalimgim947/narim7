@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>우리 반 데이터 시각화 대시보드</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-sub: #f1f5f9;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #4f46e5;
+      --primary-soft: #eef2ff;
+      --emerald: #059669;
+      --emerald-soft: #ecfdf5;
+      --violet: #7c3aed;
+      --violet-soft: #f5f3ff;
+      --rose: #e11d48;
+      --rose-soft: #fff1f2;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+    }
+
+    html.dark {
+      --bg: #020617;
+      --surface: #0f172a;
+      --surface-sub: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #1e293b;
+      --primary: #818cf8;
+      --primary-soft: rgba(99, 102, 241, 0.16);
+      --emerald: #34d399;
+      --emerald-soft: rgba(16, 185, 129, 0.16);
+      --violet: #a78bfa;
+      --violet-soft: rgba(139, 92, 246, 0.16);
+      --rose: #fb7185;
+      --rose-soft: rgba(244, 63, 94, 0.16);
+      --amber: #fbbf24;
+      --amber-soft: rgba(245, 158, 11, 0.16);
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+    /* 헤더 */
+    header {
+      position: sticky; top: 0; z-index: 30;
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1240px; margin: 0 auto; padding: 0 20px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+    .brand h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+    .brand p { font-size: 11px; color: var(--text-muted); }
+
+    .nav-links { display: flex; gap: 4px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    .nav-links a { padding: 6px 10px; border-radius: 8px; transition: 0.15s; }
+    .nav-links a:hover { background: var(--surface-sub); color: var(--text); }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-ghost {
+      padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      background: var(--surface-sub); color: var(--text); transition: 0.15s;
+    }
+    .btn-ghost:hover { opacity: 0.85; }
+
+    /* 컨테이너 */
+    main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    /* KPI 그리드 */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .kpi-top { display: flex; justify-content: space-between; align-items: center; }
+    .kpi-label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+    .kpi-badge {
+      width: 32px; height: 32px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+      background: var(--primary-soft);
+    }
+    .kpi-val { margin-top: 12px; display: flex; align-items: baseline; gap: 8px; }
+    .kpi-val strong { font-size: 28px; font-weight: 800; }
+    .kpi-val span { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .kpi-desc { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+    .kpi-clickable { cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
+    .kpi-clickable:hover { transform: translateY(-2px); border-color: var(--primary); }
+
+    .progress-track { width: 100%; height: 6px; background: var(--surface-sub); border-radius: 99px; margin-top: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 99px; }
+
+    /* 차트 2x2 */
+    .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .chart-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .chart-title { font-size: 16px; font-weight: 800; }
+    .chart-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .seg-toggle { display: inline-flex; background: var(--surface-sub); padding: 3px; border-radius: 8px; font-size: 12px; }
+    .seg-toggle button { padding: 4px 10px; border-radius: 6px; font-weight: 600; color: var(--text-muted); }
+    .seg-toggle button.active { background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* 순수 CSS 세로 막대 차트 */
+    .vbar-wrap {
+      height: 210px; display: flex; align-items: flex-end; gap: 8px;
+      padding: 18px 6px 0; border-bottom: 1px solid var(--border);
+    }
+    .vbar-col {
+      flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end;
+      cursor: pointer; group: true;
+    }
+    .vbar-col:hover .vbar { filter: brightness(1.12); transform: scaleY(1.03); }
+    .vbar-count { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--text-muted); }
+    .vbar {
+      width: 100%; max-width: 42px; border-radius: 8px 8px 0 0;
+      transition: transform 0.2s, filter 0.2s; transform-origin: bottom;
+    }
+    .vbar-labels { display: flex; gap: 8px; padding: 8px 6px 0; }
+    .vbar-label { flex: 1; text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); word-break: keep-all; }
+
+    /* 순수 SVG 도넛 차트 */
+    .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 220px; flex-wrap: wrap; }
+    .donut-legend { display: flex; flex-direction: column; gap: 10px; }
+    .legend-item {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s;
+    }
+    .legend-item:hover { background: var(--surface-sub); }
+    .legend-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+
+    /* 순수 CSS 가로 막대 차트 */
+    .hbar-list { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
+    .hbar-item { cursor: pointer; }
+    .hbar-item:hover .hbar-fill { filter: brightness(1.1); }
+    .hbar-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .hbar-track { width: 100%; height: 18px; background: var(--surface-sub); border-radius: 9px; overflow: hidden; }
+    .hbar-fill { height: 100%; border-radius: 9px; transition: width 0.4s ease, filter 0.15s; }
+
+    /* 성별 + 이색 응답 */
+    .gender-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: center; }
+    .fun-box {
+      padding: 14px; border-radius: 12px; background: var(--amber-soft);
+      border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent); font-size: 12px;
+    }
+    .fun-box h4 { font-weight: 800; color: var(--amber); margin-bottom: 8px; }
+    .fun-row { display: flex; justify-content: space-between; padding: 3px 0; cursor: pointer; }
+    .fun-row:hover { text-decoration: underline; }
+
+    /* 클러스터 섹션 */
+    .cluster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+    .cluster-box { padding: 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-sub); }
+    .cluster-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .cluster-title { font-size: 14px; font-weight: 800; }
+    .cluster-pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--primary); color: #fff; }
+    .cluster-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .node-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .node-btn {
+      padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); transition: transform 0.15s;
+    }
+    .node-btn:hover { transform: scale(1.05); border-color: var(--primary); color: var(--primary); }
+
+    /* 디렉토리 컨트롤 */
+    .dir-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; }
+    .dir-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .search-input, .sort-select {
+      padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface-sub); color: var(--text); font-size: 13px; outline: none;
+    }
+    .search-input { width: 230px; }
+    .search-input:focus, .sort-select:focus { border-color: var(--primary); }
+
+    .chip-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .chip {
+      padding: 6px 13px; border-radius: 99px; font-size: 12px; font-weight: 600;
+      background: var(--surface-sub); color: var(--text-muted); transition: 0.15s;
+    }
+    .chip:hover { color: var(--text); }
+    .chip.active { background: var(--primary); color: #fff; }
+
+    .active-notice {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px; background: var(--amber-soft); color: var(--amber);
+    }
+
+    /* 학생 카드 그리드 */
+    .student-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .student-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 18px; box-shadow: var(--shadow); cursor: pointer;
+      display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+      transition: transform 0.18s, border-color 0.18s;
+    }
+    .student-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+    .stu-head { display: flex; align-items: center; gap: 12px; }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 13px; color: #fff; font-weight: 800; font-size: 17px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .stu-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .stu-name { font-size: 16px; font-weight: 800; }
+    .gender-tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+    .stu-region { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .hobby-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .hobby-tag {
+      font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+      background: var(--primary-soft); color: var(--primary);
+    }
+    .treasure-box {
+      padding: 10px 12px; border-radius: 10px; background: var(--surface-sub); font-size: 12px;
+    }
+    .treasure-box small { display: block; font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; }
+    .treasure-box strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .link-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+      padding-top: 12px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; font-weight: 700;
+    }
+    .link-btn { padding: 6px 4px; border-radius: 8px; transition: opacity 0.15s; }
+    .link-btn:hover { opacity: 0.8; }
+    .link-disabled { padding: 6px 4px; border-radius: 8px; background: var(--surface-sub); color: var(--text-muted); opacity: 0.45; cursor: not-allowed; }
+
+    /* 테이블 뷰 */
+    .table-wrap { overflow-x: auto; padding: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th { background: var(--surface-sub); padding: 12px 14px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: var(--surface-sub); cursor: pointer; }
+
+    /* 모달 */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 50; background: rgba(2, 6, 23, 0.65);
+      backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
+      max-width: 480px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1024px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .chart-grid, .cluster-grid, .student-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 680px) {
+      .nav-links { display: none; }
+      .kpi-grid, .chart-grid, .cluster-grid, .student-grid, .gender-grid { grid-template-columns: 1fr; }
+      .search-input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">📊</div>
+        <div>
+          <h1>우리 반 데이터 시각화 대시보드</h1>
+          <p>GitHub &amp; 프로필 설문 데이터 분석 (총 15명)</p>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="#kpiSection">요약 지표</a>
+        <a href="#chartsSection">차트 분석</a>
+        <a href="#insightSection">클러스터</a>
+        <a href="#directorySection">프로필 탐색</a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="resetFilters()">필터 초기화</button>
+        <button class="btn-ghost" id="themeBtn" onclick="toggleDarkMode()" title="다크/라이트 모드">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. KPI 요약 -->
+    <section id="kpiSection" class="kpi-grid">
+      <div class="card">
+        <div class="kpi-top">
+          <span class="kpi-label">전체 참여 인원</span>
+          <span class="kpi-badge">👥</span>
+        </div>
+        <div class="kpi-val">
+          <strong>15명</strong>
+          <span style="color:var(--emerald)">GitHub 100% 등록</span>
+        </div>
+        <p class="kpi-desc">전원 계정·취미·거주지 입력 완료</p>
+      </div>
+
+      <div class="card kpi-clickable" onclick="jumpWithFilter('pages', 'GitHub Pages 제출')">
+        <div class="kpi-top">
+          <span class="kpi-label">GitHub Pages 제출률</span>
+          <span class="kpi-badge" style="background:var(--emerald-soft)">🌐</span>
+        </div>
+        <div class="kpi-val">
+          <strong>93.3%</strong>
+          <span>(14 / 15명)</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:93.3%; background:var(--emerald)"></div>
+        </div>
+      </div>
+
+      <div class="card kpi-clickable" onclick="jumpWithFilter('map', '인물지도 제출')">
+        <div class="kpi-top">
+          <span class="kpi-label">인물지도 제출률</span>
+          <span class="kpi-badge" style="background:var(--violet-soft)">🗺️</span>
+        </div>
+        <div class="kpi-val">
+          <strong>60.0%</strong>
+          <span>(9 / 15명)</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:60%; background:var(--violet)"></div>
+        </div>
+      </div>
+
+      <div class="card kpi-clickable" onclick="jumpWithFilter('region:의정부시', '거주지 의정부시')">
+        <div class="kpi-top">
+          <span class="kpi-label">최다 거주 지역</span>
+          <span class="kpi-badge" style="background:var(--amber-soft)">📍</span>
+        </div>
+        <div class="kpi-val">
+          <strong>의정부시</strong>
+          <span style="color:var(--amber)">4명 (26.7%)</span>
+        </div>
+        <p class="kpi-desc">경기도 9 · 서울 4 · 강원/경남 각 1</p>
+      </div>
+    </section>
+
+    <!-- 2. 차트 2x2 -->
+    <section id="chartsSection" class="chart-grid">
+      <!-- 차트 1: 거주지 -->
+      <div class="card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">📍 거주지 분포 현황</div>
+            <div class="chart-sub">막대를 클릭하면 해당 지역 학생만 필터링됩니다</div>
+          </div>
+          <div class="seg-toggle">
+            <button id="btnMetro" class="active" onclick="switchRegionMode('metro')">광역별</button>
+            <button id="btnCity" onclick="switchRegionMode('city')">시·군·구별</button>
+          </div>
+        </div>
+        <div id="regionChartArea"></div>
+      </div>
+
+      <!-- 차트 2: 취미 도넛 -->
+      <div class="card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">🎨 취미 키워드 카테고리</div>
+            <div class="chart-sub">복수 응답 포함 · 항목 클릭 시 관련 학생 필터링</div>
+          </div>
+        </div>
+        <div id="hobbyChartArea" class="donut-wrap"></div>
+      </div>
+
+      <!-- 차트 3: 가장 아끼는 것 -->
+      <div class="card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">💖 세상에서 가장 아끼는 것</div>
+            <div class="chart-sub">응답 유형별 집계 · 막대 클릭 시 필터링</div>
+          </div>
+        </div>
+        <div id="treasureChartArea" class="hbar-list"></div>
+      </div>
+
+      <!-- 차트 4: 성별 및 이색 응답 -->
+      <div class="card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">🧬 성별 응답 분포 &amp; 이색 응답</div>
+            <div class="chart-sub">항목 클릭 시 해당 학생 필터링 또는 상세보기</div>
+          </div>
+        </div>
+        <div class="gender-grid">
+          <div id="genderChartArea" class="hbar-list"></div>
+          <div class="fun-box">
+            <h4>✨ 개성 만점 이색 성별 TOP 3</h4>
+            <div class="fun-row" onclick="openModal(2)"><span>🦖 <strong>공룡</strong></span><span>박준영</span></div>
+            <div class="fun-row" onclick="openModal(9)"><span>👑 <strong>경동대제국 1황녀</strong></span><span>민제희</span></div>
+            <div class="fun-row" onclick="openModal(5)"><span>🐶 <strong>덩엉이</strong></span><span>김나림</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 클러스터 인사이트 -->
+    <section id="insightSection" class="card">
+      <div class="chart-header" style="margin-bottom:0">
+        <div>
+          <div class="chart-title">🕸️ 우리 반 취향·지역·관계 클러스터</div>
+          <div class="chart-sub">데이터 속 공통 관심사와 연결고리 (이름을 누르면 상세 프로필이 열립니다)</div>
+        </div>
+      </div>
+
+      <div class="cluster-grid">
+        <div class="cluster-box">
+          <div class="cluster-top">
+            <span class="cluster-title">🎸 우리 반 밴드부</span>
+            <span class="cluster-pill">5명</span>
+          </div>
+          <p class="cluster-desc">기타·네줄기타·우쿨렐레 등 현악기 연주가 취미인 멤버들이에요.</p>
+          <div class="node-list">
+            <button class="node-btn" onclick="openModal(1)">박종석 (일렉)</button>
+            <button class="node-btn" onclick="openModal(7)">김승기 (네줄기타)</button>
+            <button class="node-btn" onclick="openModal(10)">윤수아 (기타)</button>
+            <button class="node-btn" onclick="openModal(13)">최윤영 (통·일렉)</button>
+            <button class="node-btn" onclick="openModal(14)">최윤지 (우쿨렐레)</button>
+          </div>
+        </div>
+
+        <div class="cluster-box">
+          <div class="cluster-top">
+            <span class="cluster-title">📍 의정부 로컬즈</span>
+            <span class="cluster-pill" style="background:var(--amber)">4명</span>
+          </div>
+          <p class="cluster-desc">전체 인원의 26.7%가 의정부시(민락·의정부·금오·신곡2동)에 거주합니다.</p>
+          <div class="node-list">
+            <button class="node-btn" onclick="openModal(1)">박종석 (민락동)</button>
+            <button class="node-btn" onclick="openModal(2)">박준영 (의정부동)</button>
+            <button class="node-btn" onclick="openModal(6)">김보라 (금오동)</button>
+            <button class="node-btn" onclick="openModal(15)">신단하 (신곡2동)</button>
+          </div>
+        </div>
+
+        <div class="cluster-box">
+          <div class="cluster-top">
+            <span class="cluster-title">💞 데이터 속 특별한 연결</span>
+            <span class="cluster-pill" style="background:var(--rose)">시너지</span>
+          </div>
+          <p class="cluster-desc">서로의 보물로 언급되거나 같은 최애로 이어진 친구들이에요.</p>
+          <div class="node-list" style="flex-direction:column; gap:6px; font-size:12px">
+            <div>💘 <button class="node-btn" onclick="openModal(2)">박준영</button> → 보물 지목 → <button class="node-btn" onclick="openModal(6)">김보라</button></div>
+            <div>🌸 <button class="node-btn" onclick="openModal(9)">민제희</button> → 보물 지목 → <button class="node-btn" onclick="openModal(12)">정유림</button></div>
+            <div>💚 <button class="node-btn" onclick="openModal(4)">박정빈</button> ↔ 사쿠야/위시 ↔ <button class="node-btn" onclick="openModal(15)">신단하</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 학생 디렉토리 -->
+    <section id="directorySection" style="display:flex; flex-direction:column; gap:16px">
+      <div class="card">
+        <div class="dir-controls">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+              <h2 class="chart-title">🧑‍💻 우리 반 프로필 &amp; 링크 탐색기</h2>
+              <span id="countBadge" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:99px; background:var(--primary-soft); color:var(--primary)">15명</span>
+              <span id="filterNotice" class="active-notice hidden">
+                <span id="filterNoticeText"></span>
+                <button onclick="resetFilters()" title="필터 해제">✕</button>
+              </span>
+            </div>
+            <p class="chart-sub">카드를 클릭하면 상세 정보와 통하는 친구 추천을 볼 수 있습니다.</p>
+          </div>
+
+          <div class="dir-tools">
+            <input type="text" id="searchInput" class="search-input" oninput="applyFilters()" placeholder="🔍 이름, 취미, 동네, 보물 검색..." />
+            <select id="sortSelect" class="sort-select" onchange="applyFilters()">
+              <option value="default">기본 순서</option>
+              <option value="name">이름 가나다순</option>
+              <option value="region">지역 가나다순</option>
+              <option value="submitted">제출 완료 우선</option>
+            </select>
+            <div class="seg-toggle">
+              <button id="btnCardView" class="active" onclick="switchView('card')">카드 뷰</button>
+              <button id="btnTableView" onclick="switchView('table')">테이블 뷰</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chip-bar" id="chipBar">
+          <button class="chip active" data-filter="all" onclick="setQuickFilter('all')">전체 (15)</button>
+          <button class="chip" data-filter="pages" onclick="setQuickFilter('pages')">🌐 Pages 제출 (14)</button>
+          <button class="chip" data-filter="map" onclick="setQuickFilter('map')">🗺️ 인물지도 제출 (9)</button>
+          <button class="chip" data-filter="경기도" onclick="setQuickFilter('경기도')">경기도 (9)</button>
+          <button class="chip" data-filter="서울" onclick="setQuickFilter('서울')">서울특별시 (4)</button>
+          <button class="chip" data-filter="음악" onclick="setQuickFilter('음악')">🎸 음악/악기</button>
+          <button class="chip" data-filter="게임" onclick="setQuickFilter('게임')">🎮 게임/운동</button>
+        </div>
+      </div>
+
+      <div id="studentGrid" class="student-grid"></div>
+
+      <div id="tableWrap" class="card table-wrap hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>성별</th>
+              <th>거주지</th>
+              <th>취미</th>
+              <th>가장 아끼는 것</th>
+              <th style="text-align:right">링크</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div id="emptyState" class="card hidden" style="text-align:center; padding:48px 20px">
+        <div style="font-size:36px; margin-bottom:8px">🔎</div>
+        <h3>조건에 맞는 학생이 없습니다</h3>
+        <p class="chart-sub" style="margin:6px 0 14px">검색어를 바꾸거나 필터 초기화를 눌러보세요.</p>
+        <button class="chip active" onclick="resetFilters()">전체 목록 보기</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 상세 모달 -->
+  <div id="detailModal" class="modal-backdrop" onclick="closeModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const students = [
+      { id: 1, name: "박종석", github: "https://github.com/John02-design", pages: "https://john02-design.github.io/1234/", instagram: "I_am_jongseok", instaUrl: "https://www.instagram.com/I_am_jongseok", hobbies: ["일렉기타", "영화감상"], hobbyCategory: ["음악/악기", "영상/애니"], region: "경기도 의정부시 민락동", metro: "경기도", city: "의정부시", treasure: "나", treasureCategory: "나 자신", gender: "미입력", mapUrl: null },
+      { id: 2, name: "박준영", github: "https://github.com/alex60796-bot", pages: "https://alex60796-bot.github.io/dkssudgktpdy/", instagram: "jxn.y0xn9", instaUrl: "https://www.instagram.com/jxn.y0xn9", hobbies: ["피파"], hobbyCategory: ["게임/운동"], region: "경기도 의정부시 의정부동", metro: "경기도", city: "의정부시", treasure: "김보라", treasureCategory: "친구/최애/반려", gender: "공룡", mapUrl: "https://alex60796-bot.github.io/12121212/" },
+      { id: 3, name: "강민서", github: "https://github.com/rlverms", pages: "https://rlverms.github.io/rlverms/", instagram: "rlverms", instaUrl: "https://www.instagram.com/rlverms", hobbies: ["쿠리만쥬 인형 구매", "영화 시청", "음악 감상"], hobbyCategory: ["수집/창작/독서", "영상/애니", "음악/악기"], region: "서울특별시 노원구 상계동", metro: "서울특별시", city: "노원구", treasure: "엄마", treasureCategory: "가족", gender: "여자", mapUrl: "https://rlverms.github.io/kurimanzu/" },
+      { id: 4, name: "박정빈", github: "https://github.com/ImSAKUYAmyfriendisRYO", pages: "https://imsakuyamyfriendisryo.github.io/-/", instagram: "@upfstpu.2", instaUrl: "https://www.instagram.com/upfstpu.2", hobbies: ["노래듣기"], hobbyCategory: ["음악/악기"], region: "거제시 장평동", metro: "경상남도", city: "거제시", treasure: "나 ^.....^", treasureCategory: "나 자신", gender: "여자", mapUrl: null },
+      { id: 5, name: "김나림", github: "https://github.com/nalimgim947", pages: null, instagram: "@thisisimrimthis", instaUrl: "https://www.instagram.com/thisisimrimthis", hobbies: ["그림", "음악", "운동", "애니"], hobbyCategory: ["수집/창작/독서", "음악/악기", "게임/운동", "영상/애니"], region: "경기도 동두천시", metro: "경기도", city: "동두천시", treasure: "나라고 나", treasureCategory: "나 자신", gender: "덩엉이", mapUrl: null },
+      { id: 6, name: "김보라", github: "https://github.com/KIMBORA050411", pages: "https://kimbora050411.github.io/050411/", instagram: "@b0.ra.4", instaUrl: "https://www.instagram.com/b0.ra.4", hobbies: ["공포 보기"], hobbyCategory: ["영상/애니"], region: "경기도 의정부시 금오동", metro: "경기도", city: "의정부시", treasure: "김복돌", treasureCategory: "친구/최애/반려", gender: "여자", mapUrl: "https://kimbora050411.github.io/1111/" },
+      { id: 7, name: "김승기", github: "https://github.com/Seung7l", pages: "https://seung7l.github.io/DoSiMoonWhaSulGye/", instagram: "@_seung7l", instaUrl: "https://www.instagram.com/_seung7l", hobbies: ["네줄기타"], hobbyCategory: ["음악/악기"], region: "경기도 구리시 인창동", metro: "경기도", city: "구리시", treasure: "바로바로 나!", treasureCategory: "나 자신", gender: "남자", mapUrl: "https://seung7l.github.io/1117/" },
+      { id: 8, name: "문민희", github: "https://github.com/massiag41-art", pages: "https://massiag41-art.github.io/1233/", instagram: "@mini3061", instaUrl: "https://www.instagram.com/mini3061", hobbies: ["게임"], hobbyCategory: ["게임/운동"], region: "경기도 남양주시", metro: "경기도", city: "남양주시", treasure: "가족, 망고, 여름", treasureCategory: "가족", gender: "여자", mapUrl: null },
+      { id: 9, name: "민제희", github: "https://github.com/alfmekfn5", pages: "https://alfmekfn5.github.io/555/", instagram: "@mirdar.u_", instaUrl: "https://www.instagram.com/mirdar.u_", hobbies: ["게임", "운동", "기깔나게 자기"], hobbyCategory: ["게임/운동", "수집/창작/독서"], region: "강원도 춘천시", metro: "강원도", city: "춘천시", treasure: "가족들, 이연우 <<<<< 정유림", treasureCategory: "가족", gender: "경동대제국 1황녀", mapUrl: "https://alfmekfn5.github.io/data-atlas/" },
+      { id: 10, name: "윤수아", github: "https://github.com/tndk0512-ux", pages: "https://tndk0512-ux.github.io/index/", instagram: "tnd_0_5", instaUrl: "https://www.instagram.com/tnd_0_5", hobbies: ["기타", "애니", "음악듣기"], hobbyCategory: ["음악/악기", "영상/애니"], region: "서울특별시 송파구 마천동", metro: "서울특별시", city: "송파구", treasure: "동생", treasureCategory: "가족", gender: "여자", mapUrl: null },
+      { id: 11, name: "이지민", github: "https://github.com/leejimin0", pages: "https://leejimin0.github.io/ezym/", instagram: "@tonmozza", instaUrl: "https://www.instagram.com/tonmozza", hobbies: ["독서"], hobbyCategory: ["수집/창작/독서"], region: "경기도 하남시 망월동", metro: "경기도", city: "하남시", treasure: "가족", treasureCategory: "가족", gender: "여자", mapUrl: "https://leejimin0.github.io/ezy1/" },
+      { id: 12, name: "정유림", github: "https://github.com/yourrime0502-afk", pages: "https://yourrime0502-afk.github.io/kdu1/", instagram: "@nollimmm", instaUrl: "https://www.instagram.com/nollimmm?mdxt=MWNnNHBwZm5kNWI4NQ==", hobbies: ["콘서트 관람"], hobbyCategory: ["음악/악기"], region: "서울특별시 동대문구 답십리2동", metro: "서울특별시", city: "동대문구", treasure: "우리 엄마, 이성열 미모", treasureCategory: "가족", gender: "여자", mapUrl: "https://github.com/yourrime0502-afk/kdu1.git" },
+      { id: 13, name: "최윤영", github: "https://github.com/usagi030dd", pages: "https://usagi030dd.github.io/samples/", instagram: "@usagi030dd", instaUrl: "https://www.instagram.com/usagi030dd", hobbies: ["음악 감상 및 연주(통기타&일렉)"], hobbyCategory: ["음악/악기"], region: "서울특별시 도봉구 쌍문동", metro: "서울특별시", city: "도봉구", treasure: "엄마", treasureCategory: "가족", gender: "여자", mapUrl: "https://github.com/usagi030dd/map.git" },
+      { id: 14, name: "최윤지", github: "https://github.com/choiyg1105-cloud", pages: "https://choiyg1105-cloud.github.io/save/", instagram: "yum._.crochet", instaUrl: "https://www.instagram.com/yum._.crochet", hobbies: ["우쿨렐레", "뜨개질"], hobbyCategory: ["음악/악기", "수집/창작/독서"], region: "경기도 포천시", metro: "경기도", city: "포천시", treasure: "건강", treasureCategory: "건강/기타", gender: "여자", mapUrl: "https://choiyg1105-cloud.github.io/data/" },
+      { id: 15, name: "신단하", github: "https://github.com/danhaaaa", pages: "https://danhaaaa.github.io/sakuya/", instagram: "@danha_naa", instaUrl: "https://www.instagram.com/danha_naa", hobbies: ["위시 사랑하기"], hobbyCategory: ["수집/창작/독서"], region: "경기도 의정부시 신곡2동", metro: "경기도", city: "의정부시", treasure: "동생", treasureCategory: "가족", gender: "여자", mapUrl: null }
+    ];
+
+    const avatarGrads = [
+      'linear-gradient(135deg,#6366f1,#2563eb)',
+      'linear-gradient(135deg,#8b5cf6,#9333ea)',
+      'linear-gradient(135deg,#10b981,#0d9488)',
+      'linear-gradient(135deg,#f43f5e,#db2777)',
+      'linear-gradient(135deg,#f59e0b,#ea580c)',
+      'linear-gradient(135deg,#06b6d4,#0284c7)'
+    ];
+    const barPalette = ['#6366f1','#8b5cf6','#10b981','#f59e0b','#06b6d4','#ec4899','#3b82f6','#14b8a6','#f97316','#a855f7','#64748b','#84cc16'];
+
+    let activeQuickFilter = 'all';
+    let activeFilterLabel = '';
+    let regionMode = 'metro';
+
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function getGenderGroup(g) {
+      if (g === '여자' || g === '남자' || g === '미입력') return g;
+      return '이색응답';
+    }
+
+    function genderTagHtml(g) {
+      const safe = esc(g);
+      if (g === '여자') return `<span class="gender-tag" style="background:var(--rose-soft);color:var(--rose)">여자</span>`;
+      if (g === '남자') return `<span class="gender-tag" style="background:rgba(56,189,248,0.16);color:#0284c7">남자</span>`;
+      if (g === '미입력') return `<span class="gender-tag" style="background:var(--surface-sub);color:var(--text-muted)">미입력</span>`;
+      return `<span class="gender-tag" style="background:var(--amber-soft);color:var(--amber)">✨ ${safe}</span>`;
+    }
+
+    // 차트 1: 거주지 순수 CSS 막대 차트
+    function renderRegionChart() {
+      const counts = {};
+      students.forEach(s => {
+        const k = regionMode === 'metro' ? s.metro : s.city;
+        counts[k] = (counts[k] || 0) + 1;
+      });
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      const maxVal = Math.max(...entries.map(e => e[1]));
+
+      const bars = entries.map(([label, val], i) => {
+        const pct = Math.max(12, Math.round((val / maxVal) * 82));
+        const color = barPalette[i % barPalette.length];
+        return `
+          <div class="vbar-col" onclick="jumpWithFilter('region:${esc(label)}', '거주지 ${esc(label)}')" title="${esc(label)}: ${val}명 (클릭하여 필터링)">
+            <span class="vbar-count">${val}</span>
+            <div class="vbar" style="height:${pct}%; background:${color}"></div>
+          </div>
+        `;
+      }).join('');
+
+      const labels = entries.map(([label]) => `<div class="vbar-label">${esc(label)}</div>`).join('');
+      document.getElementById('regionChartArea').innerHTML = `
+        <div class="vbar-wrap">${bars}</div>
+        <div class="vbar-labels">${labels}</div>
+      `;
+    }
+
+    // 차트 2: 취미 SVG 도넛 차트
+    function renderHobbyChart() {
+      const cats = [
+        { name: '음악/악기', color: '#6366f1' },
+        { name: '수집/창작/독서', color: '#ec4899' },
+        { name: '영상/애니', color: '#f59e0b' },
+        { name: '게임/운동', color: '#10b981' }
+      ].map(c => ({
+        ...c,
+        count: students.filter(s => s.hobbyCategory.includes(c.name)).length
+      }));
+
+      const total = cats.reduce((acc, c) => acc + c.count, 0);
+      const r = 64;
+      const circ = 2 * Math.PI * r;
+      let offset = 0;
+
+      const circles = cats.map(c => {
+        const seg = (c.count / total) * circ;
+        const el = `<circle cx="90" cy="90" r="${r}" fill="transparent" stroke="${c.color}" stroke-width="26"
+          stroke-dasharray="${seg} ${circ}" stroke-dashoffset="${-offset}"
+          style="cursor:pointer; transition:opacity 0.2s"
+          onclick="jumpWithFilter('hobbyCat:${esc(c.name)}', '취미 ${esc(c.name)}')">
+          <title>${esc(c.name)}: ${c.count}명</title></circle>`;
+        offset += seg;
+        return el;
+      }).join('');
+
+      const legend = cats.map(c => `
+        <div class="legend-item" onclick="jumpWithFilter('hobbyCat:${esc(c.name)}', '취미 ${esc(c.name)}')">
+          <span class="legend-dot" style="background:${c.color}"></span>
+          <span>${esc(c.name)}</span>
+          <span style="color:var(--text-muted); margin-left:auto">${c.count}명</span>
+        </div>
+      `).join('');
+
+      document.getElementById('hobbyChartArea').innerHTML = `
+        <svg width="180" height="180" viewBox="0 0 180 180" style="transform:rotate(-90deg)">
+          ${circles}
+          <text x="90" y="95" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="800"
+            style="transform:rotate(90deg); transform-origin:90px 90px">복수응답 ${total}</text>
+        </svg>
+        <div class="donut-legend">${legend}</div>
+      `;
+    }
+
+    // 차트 3: 세상에서 가장 아끼는 것 가로 막대
+    function renderTreasureChart() {
+      const items = [
+        { key: '가족', label: '가족 (엄마·동생·가족)', color: '#f43f5e' },
+        { key: '나 자신', label: '나 자신', color: '#8b5cf6' },
+        { key: '친구/최애/반려', label: '친구·최애·반려동물', color: '#3b82f6' },
+        { key: '건강/기타', label: '건강', color: '#10b981' }
+      ].map(item => ({
+        ...item,
+        count: students.filter(s => s.treasureCategory === item.key).length
+      }));
+
+      const max = Math.max(...items.map(i => i.count));
+      document.getElementById('treasureChartArea').innerHTML = items.map(item => `
+        <div class="hbar-item" onclick="jumpWithFilter('treasureCat:${esc(item.key)}', '보물: ${esc(item.label)}')">
+          <div class="hbar-meta">
+            <span>${esc(item.label)}</span>
+            <span style="color:var(--text-muted)">${item.count}명 (${Math.round(item.count / students.length * 100)}%)</span>
+          </div>
+          <div class="hbar-track">
+            <div class="hbar-fill" style="width:${(item.count / max) * 100}%; background:${item.color}"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 차트 4: 성별 가로 막대
+    function renderGenderChart() {
+      const groups = [
+        { key: '여자', color: '#fb7185' },
+        { key: '이색응답', color: '#fbbf24' },
+        { key: '남자', color: '#38bdf8' },
+        { key: '미입력', color: '#94a3b8' }
+      ].map(g => ({
+        ...g,
+        count: students.filter(s => getGenderGroup(s.gender) === g.key).length
+      }));
+
+      const max = Math.max(...groups.map(g => g.count));
+      document.getElementById('genderChartArea').innerHTML = groups.map(g => `
+        <div class="hbar-item" onclick="jumpWithFilter('genderGroup:${esc(g.key)}', '성별: ${esc(g.key)}')">
+          <div class="hbar-meta">
+            <span>${esc(g.key)}</span>
+            <span style="color:var(--text-muted)">${g.count}명</span>
+          </div>
+          <div class="hbar-track" style="height:12px">
+            <div class="hbar-fill" style="width:${(g.count / max) * 100}%; background:${g.color}"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderDirectory(list) {
+      const grid = document.getElementById('studentGrid');
+      const tbody = document.getElementById('tableBody');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('countBadge').textContent = `${list.length}명`;
+
+      if (list.length === 0) {
+        grid.innerHTML = '';
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      grid.innerHTML = list.map(s => {
+        const grad = avatarGrads[s.id % avatarGrads.length];
+        const hobbies = s.hobbies.map(h => `<span class="hobby-tag">#${esc(h)}</span>`).join('');
+        return `
+          <div class="student-card" onclick="openModal(${s.id})">
+            <div style="display:flex; flex-direction:column; gap:12px">
+              <div class="stu-head">
+                <div class="avatar" style="background:${grad}">${esc(s.name.slice(0, 1))}</div>
+                <div>
+                  <div class="stu-name-row">
+                    <span class="stu-name">${esc(s.name)}</span>
+                    ${genderTagHtml(s.gender)}
+                  </div>
+                  <div class="stu-region">📍 ${esc(s.region)}</div>
+                </div>
+              </div>
+              <div class="hobby-tags">${hobbies}</div>
+              <div class="treasure-box">
+                <small>💖 가장 아끼는 것</small>
+                <strong title="${esc(s.treasure)}">${esc(s.treasure)}</strong>
+              </div>
+            </div>
+
+            <div class="link-row" onclick="event.stopPropagation()">
+              <a class="link-btn" style="background:var(--surface-sub)" href="${esc(s.github)}" target="_blank" rel="noopener">GitHub</a>
+              ${s.pages
+                ? `<a class="link-btn" style="background:var(--emerald-soft);color:var(--emerald)" href="${esc(s.pages)}" target="_blank" rel="noopener">Pages</a>`
+                : `<span class="link-disabled">미제출</span>`}
+              ${s.mapUrl
+                ? `<a class="link-btn" style="background:var(--violet-soft);color:var(--violet)" href="${esc(s.mapUrl)}" target="_blank" rel="noopener">인물지도</a>`
+                : `<span class="link-disabled">지도없음</span>`}
+              <a class="link-btn" style="background:var(--rose-soft);color:var(--rose)" href="${esc(s.instaUrl)}" target="_blank" rel="noopener">Insta</a>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      tbody.innerHTML = list.map(s => `
+        <tr onclick="openModal(${s.id})">
+          <td style="font-weight:800; white-space:nowrap">${esc(s.name)}</td>
+          <td style="white-space:nowrap">${genderTagHtml(s.gender)}</td>
+          <td style="white-space:nowrap; color:var(--text-muted)">${esc(s.region)}</td>
+          <td>${esc(s.hobbies.join(', '))}</td>
+          <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${esc(s.treasure)}">${esc(s.treasure)}</td>
+          <td style="text-align:right; white-space:nowrap" onclick="event.stopPropagation()">
+            <a class="link-btn" style="background:var(--surface-sub); padding:4px 8px" href="${esc(s.github)}" target="_blank" rel="noopener">Git</a>
+            ${s.pages ? `<a class="link-btn" style="background:var(--emerald-soft); color:var(--emerald); padding:4px 8px" href="${esc(s.pages)}" target="_blank" rel="noopener">Page</a>` : ''}
+            ${s.mapUrl ? `<a class="link-btn" style="background:var(--violet-soft); color:var(--violet); padding:4px 8px" href="${esc(s.mapUrl)}" target="_blank" rel="noopener">지도</a>` : ''}
+            <a class="link-btn" style="background:var(--rose-soft); color:var(--rose); padding:4px 8px" href="${esc(s.instaUrl)}" target="_blank" rel="noopener">Insta</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const sortMode = document.getElementById('sortSelect').value;
+
+      let filtered = students.filter(s => {
+        let pass = true;
+        if (activeQuickFilter === 'pages') pass = Boolean(s.pages);
+        else if (activeQuickFilter === 'map') pass = Boolean(s.mapUrl);
+        else if (activeQuickFilter === '경기도') pass = s.metro === '경기도';
+        else if (activeQuickFilter === '서울') pass = s.metro === '서울특별시';
+        else if (activeQuickFilter === '음악') pass = s.hobbyCategory.includes('음악/악기');
+        else if (activeQuickFilter === '게임') pass = s.hobbyCategory.includes('게임/운동');
+        else if (activeQuickFilter.startsWith('region:')) {
+          const t = activeQuickFilter.slice(7);
+          pass = s.metro === t || s.city === t;
+        } else if (activeQuickFilter.startsWith('hobbyCat:')) {
+          pass = s.hobbyCategory.includes(activeQuickFilter.slice(9));
+        } else if (activeQuickFilter.startsWith('treasureCat:')) {
+          pass = s.treasureCategory === activeQuickFilter.slice(12);
+        } else if (activeQuickFilter.startsWith('genderGroup:')) {
+          pass = getGenderGroup(s.gender) === activeQuickFilter.slice(12);
+        }
+
+        if (!pass) return false;
+        if (!q) return true;
+        return [s.name, s.region, s.hobbies.join(' '), s.treasure, s.gender, s.instagram]
+          .join(' ').toLowerCase().includes(q);
+      });
+
+      if (sortMode === 'name') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      else if (sortMode === 'region') filtered = [...filtered].sort((a, b) => a.region.localeCompare(b.region, 'ko'));
+      else if (sortMode === 'submitted') {
+        filtered = [...filtered].sort((a, b) => ((b.pages ? 1 : 0) + (b.mapUrl ? 1 : 0)) - ((a.pages ? 1 : 0) + (a.mapUrl ? 1 : 0)));
+      }
+
+      const notice = document.getElementById('filterNotice');
+      if (activeFilterLabel) {
+        document.getElementById('filterNoticeText').textContent = `필터: ${activeFilterLabel}`;
+        notice.classList.remove('hidden');
+      } else {
+        notice.classList.add('hidden');
+      }
+
+      renderDirectory(filtered);
+    }
+
+    function setQuickFilter(key, label = '') {
+      activeQuickFilter = key;
+      activeFilterLabel = label;
+      document.querySelectorAll('#chipBar .chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === key);
+      });
+      applyFilters();
+    }
+
+    function jumpWithFilter(key, label = '') {
+      setQuickFilter(key, label);
+      document.getElementById('directorySection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('sortSelect').value = 'default';
+      setQuickFilter('all', '');
+    }
+
+    function switchRegionMode(mode) {
+      regionMode = mode;
+      document.getElementById('btnMetro').classList.toggle('active', mode === 'metro');
+      document.getElementById('btnCity').classList.toggle('active', mode === 'city');
+      renderRegionChart();
+    }
+
+    function switchView(view) {
+      const isCard = view === 'card';
+      document.getElementById('studentGrid').classList.toggle('hidden', !isCard);
+      document.getElementById('tableWrap').classList.toggle('hidden', isCard);
+      document.getElementById('btnCardView').classList.toggle('active', isCard);
+      document.getElementById('btnTableView').classList.toggle('active', !isCard);
+    }
+
+    function openModal(id) {
+      const s = students.find(item => item.id === id);
+      if (!s) return;
+      const grad = avatarGrads[s.id % avatarGrads.length];
+
+      const matches = students
+        .filter(o => o.id !== s.id)
+        .map(o => {
+          const shared = o.hobbyCategory.filter(c => s.hobbyCategory.includes(c));
+          const sameMetro = o.metro === s.metro;
+          return { o, shared, sameMetro, score: shared.length * 2 + (sameMetro ? 1 : 0) };
+        })
+        .filter(m => m.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      const matchHtml = matches.length
+        ? matches.map(({ o, shared, sameMetro }) => {
+            const tag = shared.length ? shared[0] : o.metro;
+            return `<button class="node-btn" onclick="openModal(${o.id})">${esc(o.name)} <span style="color:var(--primary);font-size:11px">(${esc(tag)}${sameMetro && shared.length ? '·동네' : ''})</span></button>`;
+          }).join('')
+        : '<span style="font-size:12px;color:var(--text-muted)">독보적인 취향의 소유자!</span>';
+
+      document.getElementById('modalContent').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px">
+          <div class="stu-head">
+            <div class="avatar" style="width:54px;height:54px;font-size:20px;background:${grad}">${esc(s.name.slice(0, 1))}</div>
+            <div>
+              <div class="stu-name-row">
+                <span style="font-size:20px;font-weight:800">${esc(s.name)}</span>
+                ${genderTagHtml(s.gender)}
+              </div>
+              <div class="stu-region">📍 ${esc(s.region)}</div>
+            </div>
+          </div>
+          <button class="btn-ghost" onclick="closeModal()">✕</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:13px">
+          <div class="treasure-box"><small>🎨 취미</small><strong style="white-space:normal">${esc(s.hobbies.join(', '))}</strong></div>
+          <div class="treasure-box" style="background:var(--rose-soft)"><small style="color:var(--rose)">💖 세상에서 가장 아끼는 것</small><strong style="white-space:normal">${esc(s.treasure)}</strong></div>
+          <div class="treasure-box" style="display:flex; justify-content:space-between; align-items:center">
+            <div><small>📸 인스타그램</small><strong style="color:var(--primary)">${esc(s.instagram)}</strong></div>
+            <a class="node-btn" href="${esc(s.instaUrl)}" target="_blank" rel="noopener">열기 ↗</a>
+          </div>
+          <div class="treasure-box" style="background:transparent; border:1px solid var(--border)">
+            <small style="margin-bottom:6px">🤝 취향·지역이 통하는 친구</small>
+            <div class="node-list">${matchHtml}</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; text-align:center; font-size:12px; font-weight:700">
+          <a class="link-btn" style="background:var(--text); color:var(--surface); padding:10px" href="${esc(s.github)}" target="_blank" rel="noopener">GitHub ↗</a>
+          ${s.pages ? `<a class="link-btn" style="background:var(--emerald); color:#fff; padding:10px" href="${esc(s.pages)}" target="_blank" rel="noopener">Pages ↗</a>` : `<span class="link-disabled" style="padding:10px">Pages 미제출</span>`}
+          ${s.mapUrl ? `<a class="link-btn" style="background:var(--violet); color:#fff; padding:10px" href="${esc(s.mapUrl)}" target="_blank" rel="noopener">인물지도 ↗</a>` : `<span class="link-disabled" style="padding:10px">지도 미제출</span>`}
+        </div>
+      `;
+
+      document.getElementById('detailModal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    function toggleDarkMode() {
+      const dark = document.documentElement.classList.toggle('dark');
+      document.getElementById('themeBtn').textContent = dark ? '☀️' : '🌙';
+    }
+
+    renderRegionChart();
+    renderHobbyChart();
+    renderTreasureChart();
+    renderGenderChart();
+    renderDirectory(students);
+  </script>
+</body>
+</html>
